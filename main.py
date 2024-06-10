@@ -3,9 +3,25 @@ from pydantic import BaseModel
 from typing import Annotated
 from sqlalchemy.orm import Session
 from database import SessionLocal,engine
+from fastapi.middleware.cors import CORSMiddleware
 import models
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:*",
+    "http://localhost:5173",
+    "http://localhost:3000", 
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 def get_db():
     db = SessionLocal()
@@ -36,7 +52,7 @@ class GameStatusBase(BaseModel):
 async def read_root():
     return {'hello':'world'}
 
-@app.get('/top-scores')
+@app.get('/scores')
 async def get_top_users(db: Session = Depends(get_db)):
     top_users = db.query(models.User).order_by(models.User.score.desc()).limit(10).all()
     return top_users
@@ -74,6 +90,8 @@ def commit_results_player(player_status:GameStatusBase,db:Session):
             player_score = 1
         elif player_status.status=='LOSE':
             player_score = -1
+        elif player_status.status=='DRAW':
+            pass
         else:
             return False
         
@@ -86,7 +104,7 @@ def commit_results_player(player_status:GameStatusBase,db:Session):
         return True
 
 
-@app.post('/game',response_model=bool)
+@app.post('/play',response_model=bool)
 async def commit_result(Status: list[GameStatusBase], db: Session = Depends(get_db)):
 
     player1 = Status[0]
